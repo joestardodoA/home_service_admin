@@ -1,0 +1,1 @@
+import{r as e}from"./request-iv8Kr-Al.js";const a=t=>e.get("/articles",{params:t}),r=t=>e.get("/articles/"+t),l=t=>e.post("/articles",t),i=(t,s)=>e.put("/articles/"+t,s),o=t=>e.delete("/articles/"+t),u=(t,s)=>e.put("/articles/"+t+"/status",{status:s});export{r as a,i as b,l as c,o as d,a as g,u};
