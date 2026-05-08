@@ -13,7 +13,13 @@
         <el-table-column prop="realName" label="真实姓名" min-width="100" />
         <el-table-column label="角色" min-width="100">
           <template #default="{ row }">
-            <el-tag :type="roleType(row.role)" size="small">{{ roleText(row.role) }}</el-tag>
+            <el-tag :type="row.role === 'super' ? 'danger' : ''" size="small">{{ row.role }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="权限数" min-width="80" align="center">
+          <template #default="{ row }">
+            <span v-if="row.role === 'super'" style="color: var(--apple-blue); font-weight: 600;">全部</span>
+            <span v-else>{{ (row.permissions || []).length }}</span>
           </template>
         </el-table-column>
         <el-table-column label="状态" min-width="80" align="center">
@@ -39,7 +45,7 @@
     </el-card>
 
     <!-- 新建/编辑弹窗 -->
-    <el-dialog :title="editId ? '编辑管理员' : '新建管理员'" v-model="dialogVisible" width="480px" destroy-on-close>
+    <el-dialog :title="editId ? '编辑管理员' : '新建管理员'" v-model="dialogVisible" width="640px" destroy-on-close>
       <el-form :model="form" label-width="80px">
         <el-form-item label="用户名" required>
           <el-input v-model="form.username" :disabled="!!editId" placeholder="登录用户名" />
@@ -50,12 +56,29 @@
         <el-form-item label="真实姓名">
           <el-input v-model="form.realName" placeholder="姓名" />
         </el-form-item>
-        <el-form-item label="角色">
-          <el-select v-model="form.role" style="width: 100%;">
-            <el-option label="超级管理员" value="super" />
-            <el-option label="运营管理员" value="operator" />
-            <el-option label="审核员" value="auditor" />
-          </el-select>
+        <el-form-item label="角色名称">
+          <el-input v-model="form.role" placeholder="如：销售总监、销售、审核员、运营..." :disabled="editId && editRow && editRow.role === 'super'" />
+          <div class="form-tip">自定义角色名，超级管理员角色不可修改</div>
+        </el-form-item>
+        <el-form-item label="权限分配" v-if="form.role !== 'super'">
+          <div class="perm-panel">
+            <div class="perm-actions">
+              <el-button link type="primary" size="small" @click="selectAll">全选</el-button>
+              <el-button link type="info" size="small" @click="clearAll">清空</el-button>
+            </div>
+            <div v-for="(perms, group) in groupedPerms" :key="group" class="perm-group">
+              <div class="pg-header">
+                <el-checkbox :model-value="isGroupChecked(group)" :indeterminate="isGroupIndeterminate(group)" @change="toggleGroup(group, $event)">
+                  {{ group }}
+                </el-checkbox>
+              </div>
+              <div class="pg-items">
+                <el-checkbox v-for="p in perms" :key="p.code" :model-value="form.permissions.indexOf(p.code) !== -1" @change="togglePerm(p.code, $event)">
+                  {{ p.name }}
+                </el-checkbox>
+              </div>
+            </div>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -67,9 +90,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getAdmins, createAdmin, updateAdmin, toggleAdminStatus, deleteAdmin, resetAdminPassword } from '../../api/system.js'
+import { getAdmins, createAdmin, updateAdmin, toggleAdminStatus, deleteAdmin, resetAdminPassword, getPermissions } from '../../api/system.js'
 
 const list = ref([])
 const loading = ref(false)
@@ -78,11 +101,11 @@ const pageSize = 10
 const total = ref(0)
 const dialogVisible = ref(false)
 const editId = ref(null)
+const editRow = ref(null)
 const submitting = ref(false)
-const form = ref({ username: '', password: '', realName: '', role: 'operator' })
+const form = ref({ username: '', password: '', realName: '', role: '运营', permissions: [] })
+const groupedPerms = ref({})
 
-function roleType(r) { return { super: 'danger', operator: '', auditor: 'warning' }[r] || 'info' }
-function roleText(r) { return { super: '超级管理员', operator: '运营管理员', auditor: '审核员' }[r] || r }
 function formatDate(d) {
   if (!d) return ''
   var dt = new Date(d)
@@ -99,22 +122,76 @@ async function fetchList() {
   loading.value = false
 }
 
+async function fetchPermissions() {
+  try {
+    var res = await getPermissions()
+    groupedPerms.value = res.data.grouped || {}
+  } catch (e) {}
+}
+
 function openDialog(row) {
   if (row) {
     editId.value = row.id
-    form.value = { username: row.username, password: '', realName: row.realName, role: row.role }
+    editRow.value = row
+    form.value = {
+      username: row.username,
+      password: '',
+      realName: row.realName,
+      role: row.role,
+      permissions: Array.isArray(row.permissions) ? [...row.permissions] : []
+    }
   } else {
     editId.value = null
-    form.value = { username: '', password: '', realName: '', role: 'operator' }
+    editRow.value = null
+    form.value = { username: '', password: '', realName: '', role: '运营', permissions: [] }
   }
   dialogVisible.value = true
 }
+
+// 权限勾选操作
+function togglePerm(code, checked) {
+  var idx = form.value.permissions.indexOf(code)
+  if (checked && idx === -1) form.value.permissions.push(code)
+  if (!checked && idx !== -1) form.value.permissions.splice(idx, 1)
+}
+
+function isGroupChecked(group) {
+  var perms = groupedPerms.value[group] || []
+  return perms.every(function(p) { return form.value.permissions.indexOf(p.code) !== -1 })
+}
+
+function isGroupIndeterminate(group) {
+  var perms = groupedPerms.value[group] || []
+  var count = perms.filter(function(p) { return form.value.permissions.indexOf(p.code) !== -1 }).length
+  return count > 0 && count < perms.length
+}
+
+function toggleGroup(group, checked) {
+  var perms = groupedPerms.value[group] || []
+  perms.forEach(function(p) {
+    var idx = form.value.permissions.indexOf(p.code)
+    if (checked && idx === -1) form.value.permissions.push(p.code)
+    if (!checked && idx !== -1) form.value.permissions.splice(idx, 1)
+  })
+}
+
+function selectAll() {
+  var all = []
+  Object.values(groupedPerms.value).forEach(function(perms) { perms.forEach(function(p) { all.push(p.code) }) })
+  form.value.permissions = all
+}
+
+function clearAll() { form.value.permissions = [] }
 
 async function handleSubmit() {
   submitting.value = true
   try {
     if (editId.value) {
-      await updateAdmin(editId.value, { realName: form.value.realName, role: form.value.role })
+      await updateAdmin(editId.value, {
+        realName: form.value.realName,
+        role: form.value.role,
+        permissions: form.value.permissions
+      })
       ElMessage.success('更新成功')
     } else {
       if (!form.value.username || !form.value.password) { ElMessage.warning('请填写用户名和密码'); submitting.value = false; return }
@@ -148,10 +225,39 @@ async function handleDelete(row) {
   fetchList()
 }
 
-onMounted(fetchList)
+onMounted(() => {
+  fetchList()
+  fetchPermissions()
+})
 </script>
 
 <style scoped>
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .pagination-wrap { display: flex; justify-content: flex-end; margin-top: 16px; }
+.form-tip { font-size: 12px; color: var(--gray-400); margin-top: 4px; }
+
+/* 权限面板 */
+.perm-panel {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.perm-actions { display: flex; gap: 12px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--gray-100); }
+.perm-group { margin-bottom: 16px; }
+.perm-group:last-child { margin-bottom: 0; }
+.pg-header {
+  background: var(--gray-50);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.pg-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding-left: 24px;
+}
 </style>

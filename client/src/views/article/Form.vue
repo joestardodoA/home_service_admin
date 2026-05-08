@@ -6,6 +6,27 @@
         <el-button @click="$router.back()">返回</el-button>
       </div>
     </template>
+    <!-- AI 生成区域 -->
+    <div v-if="!isEdit" class="ai-gen-section">
+      <div class="ai-gen-header">
+        <span class="ai-gen-icon">🤖</span>
+        <span class="ai-gen-label">AI 生成文章草稿</span>
+        <el-tag size="small" type="success" effect="dark" style="margin-left:8px;">AI</el-tag>
+      </div>
+      <div class="ai-gen-body">
+        <el-input v-model="aiTopic" placeholder="输入文章主题，如：如何选择月嫂、新手妈妈必知的育儿知识" style="flex:1;" />
+        <el-select v-model="aiCategory" style="width:120px;margin-left:8px;">
+          <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+        </el-select>
+        <el-button type="primary" :loading="aiGenerating" @click="handleAiGenerate" style="margin-left:8px;">
+          {{ aiGenerating ? 'AI 生成中...' : '✨ 生成草稿' }}
+        </el-button>
+      </div>
+      <div v-if="aiResult" class="ai-gen-result">
+        <el-alert :title="aiResult" type="success" :closable="false" show-icon />
+      </div>
+    </div>
+
     <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-width:800px;">
       <el-form-item label="标题" prop="title">
         <el-input v-model="form.title" placeholder="文章标题" />
@@ -40,7 +61,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getArticle, createArticle, updateArticle } from '../../api/articles.js'
+import { getArticle, createArticle, updateArticle, generateArticle } from '../../api/articles.js'
 import { ElMessage } from 'element-plus'
 import ImageUpload from '../../components/ImageUpload.vue'
 
@@ -69,4 +90,48 @@ async function handleSubmit(status) {
     router.push('/articles')
   } catch(e) {} finally { saving.value = false }
 }
+
+// ==================== AI 生成 ====================
+const aiTopic = ref('')
+const aiCategory = ref('保洁')
+const aiGenerating = ref(false)
+const aiResult = ref('')
+
+async function handleAiGenerate() {
+  if (!aiTopic.value.trim()) { ElMessage.warning('请输入文章主题'); return }
+  aiGenerating.value = true
+  aiResult.value = ''
+  try {
+    const res = await generateArticle({ topic: aiTopic.value, category: aiCategory.value })
+    const data = res.data
+    if (data.title) form.title = data.title
+    if (data.summary) form.summary = data.summary
+    if (data.content) form.content = data.content
+    if (data.tags && data.tags.length) form.tags = data.tags
+    form.category = aiCategory.value
+    aiResult.value = '草稿已生成，请检查并修改后保存'
+    ElMessage.success('AI 草稿生成成功')
+  } catch (e) {
+    ElMessage.error('AI 生成失败')
+  } finally { aiGenerating.value = false }
+}
 </script>
+
+<style scoped>
+.ai-gen-section {
+  background: linear-gradient(135deg, #f0f9ff, #e8f5e9);
+  border: 1px solid rgba(103, 194, 58, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.ai-gen-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.ai-gen-icon { font-size: 20px; margin-right: 6px; }
+.ai-gen-label { font-weight: 700; font-size: 15px; }
+.ai-gen-body { display: flex; align-items: center; }
+.ai-gen-result { margin-top: 12px; }
+</style>

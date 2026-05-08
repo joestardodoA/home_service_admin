@@ -1,0 +1,1 @@
+import{r as e}from"./request-BL4PJXSB.js";const c=t=>e.get("/articles",{params:t}),r=t=>e.get("/articles/"+t),i=t=>e.post("/articles",t),l=(t,s)=>e.put("/articles/"+t,s),o=t=>e.delete("/articles/"+t),n=(t,s)=>e.put("/articles/"+t+"/status",{status:s}),p=t=>e.post("/articles/ai-generate",t);export{r as a,p as b,l as c,o as d,i as e,c as g,n as u};

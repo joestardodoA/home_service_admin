@@ -11,7 +11,6 @@ const Banner = require('./Banner');
 const Commission = require('./Commission');
 const OperationLog = require('./OperationLog');
 
-
 // Phase 2 新增
 const ShareRecord = require('./ShareRecord');
 
@@ -26,6 +25,22 @@ const SubscriptionSetting = require('./SubscriptionSetting');
 
 // Phase 5 新增
 const SystemSetting = require('./SystemSetting');
+
+// Phase 6 新增：后台通知
+const AdminNotification = require('./AdminNotification');
+
+// Phase 7 新增：闺蜜圈
+const GuimiCircle = require('./GuimiCircle');
+const GuimiCircleMember = require('./GuimiCircleMember');
+const GuimiInviteCode = require('./GuimiInviteCode');
+const GuimiCircleEvent = require('./GuimiCircleEvent');
+
+// Phase 8 新增：登录日志 + 内部公告
+const LoginLog = require('./LoginLog');
+const Announcement = require('./Announcement');
+
+// Phase 9 新增：AI 报告存档
+const AiReport = require('./AiReport');
 
 // === 机构关联 ===
 Agency.hasMany(AgencyCourse, { as: 'courses', foreignKey: 'agencyId' });
@@ -59,6 +74,7 @@ ServiceOrder.belongsTo(JobType, { as: 'jobType', foreignKey: 'jobTypeId' });
 ServiceOrder.belongsTo(User, { as: 'acceptedUser', foreignKey: 'acceptedUserId' });
 ServiceOrder.belongsTo(ShareRecord, { as: 'shareRecord', foreignKey: 'shareRecordId' });
 ServiceOrder.hasMany(OrderApplication, { as: 'applications', foreignKey: 'orderId' });
+ServiceOrder.belongsTo(Admin, { as: 'assignedAdmin', foreignKey: 'assignedAdminId' });
 User.hasMany(ServiceOrder, { as: 'publishedOrders', foreignKey: 'userId' });
 JobType.hasMany(ServiceOrder, { as: 'orders', foreignKey: 'jobTypeId' });
 
@@ -77,10 +93,43 @@ User.hasMany(Message, { as: 'messages', foreignKey: 'userId' });
 SubscriptionSetting.belongsTo(User, { as: 'user', foreignKey: 'userId' });
 User.hasOne(SubscriptionSetting, { as: 'subscription', foreignKey: 'userId' });
 
+// === 后台通知关联 ===
+AdminNotification.belongsTo(Admin, { as: 'admin', foreignKey: 'adminId' });
+Admin.hasMany(AdminNotification, { as: 'notifications', foreignKey: 'adminId' });
+
+// === 闺蜜圈关联 ===
+GuimiCircle.belongsTo(User, { as: 'owner', foreignKey: 'ownerId' });
+GuimiCircle.belongsTo(JobType, { as: 'jobType', foreignKey: 'jobTypeId' });
+GuimiCircle.hasMany(GuimiCircleMember, { as: 'members', foreignKey: 'circleId' });
+GuimiCircleMember.belongsTo(GuimiCircle, { as: 'circle', foreignKey: 'circleId' });
+GuimiCircleMember.belongsTo(User, { as: 'user', foreignKey: 'userId' });
+User.hasMany(GuimiCircle, { as: 'ownedCircles', foreignKey: 'ownerId' });
+User.hasMany(GuimiCircleMember, { as: 'circleMemberships', foreignKey: 'userId' });
+GuimiInviteCode.belongsTo(GuimiCircle, { as: 'circle', foreignKey: 'circleId' });
+
+// === 登录日志关联 ===
+LoginLog.belongsTo(Admin, { as: 'admin', foreignKey: 'adminId' });
+
+// === 公告关联 ===
+Announcement.belongsTo(Admin, { as: 'publisher', foreignKey: 'adminId' });
+
+// === 闺蜜圈事件关联 ===
+GuimiCircleEvent.belongsTo(GuimiCircle, { as: 'circle', foreignKey: 'circleId' });
+GuimiCircleEvent.belongsTo(User, { as: 'user', foreignKey: 'userId' });
+GuimiCircle.hasMany(GuimiCircleEvent, { as: 'events', foreignKey: 'circleId' });
+
+// === AI 报告关联 ===
+AiReport.belongsTo(Admin, { as: 'admin', foreignKey: 'adminId' });
+Admin.hasMany(AiReport, { as: 'reports', foreignKey: 'adminId' });
+
 module.exports = {
   sequelize, Admin, Coupon, Agency, AgencyCourse,
   CouponOrder, User, Article, Banner,
   Commission, OperationLog,
   ShareRecord, JobType, ServiceOrder, OrderApplication,
-  Message, SubscriptionSetting, SystemSetting
+  Message, SubscriptionSetting, SystemSetting,
+  AdminNotification,
+  GuimiCircle, GuimiCircleMember, GuimiInviteCode, GuimiCircleEvent,
+  LoginLog, Announcement,
+  AiReport
 };

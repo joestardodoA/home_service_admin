@@ -29,8 +29,14 @@
         <el-table-column label="优惠券" min-width="160">
           <template #default="{ row }">{{ row.coupon ? row.coupon.title : '-' }}</template>
         </el-table-column>
-        <el-table-column label="用户" width="100">
-          <template #default="{ row }">{{ row.user ? row.user.nickname : '-' }}</template>
+        <el-table-column label="用户" min-width="130">
+          <template #default="{ row }">
+            <div v-if="row.user">
+              <div>{{ row.user.nickname || '-' }}</div>
+              <div style="font-size:12px;color:#909399;">{{ row.user.phone || '未绑定手机' }}</div>
+            </div>
+            <span v-else>-</span>
+          </template>
         </el-table-column>
         <el-table-column prop="verifyCode" label="核销码" width="150" />
         <el-table-column label="状态" width="90">
@@ -38,13 +44,16 @@
             <el-tag size="small" :type="statusType[row.status]">{{ statusMap[row.status] }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="source" label="来源" width="90" />
+        <el-table-column label="分享人" width="100">
+          <template #default="{ row }">{{ row.sharer ? row.sharer.nickname : '-' }}</template>
+        </el-table-column>
+        <el-table-column prop="claimDate" label="领取时间" width="160" />
         <el-table-column prop="expireDate" label="过期日期" width="110" />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.status === 'unused'" size="small" type="success" @click="handleVerify(row)">核销</el-button>
             <el-button v-if="row.status === 'unused'" size="small" type="warning" @click="handleCancel(row)">作废</el-button>
-            <el-button size="small" @click="showDetail(row)">详情</el-button>
+            <el-button size="small" type="primary" @click="showDetail(row)">详情</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -59,14 +68,20 @@
         <el-descriptions :column="1" border>
           <el-descriptions-item label="订单号">{{ detail.orderNo }}</el-descriptions-item>
           <el-descriptions-item label="优惠券">{{ detail.coupon ? detail.coupon.title : '-' }}</el-descriptions-item>
-          <el-descriptions-item label="用户">{{ detail.user ? detail.user.nickname : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="用户昵称">{{ detail.user ? detail.user.nickname : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="用户手机">
+            <span v-if="detail.user && detail.user.phone" style="font-weight:600;">{{ detail.user.phone }}</span>
+            <el-tag v-else size="small" type="info">未绑定</el-tag>
+          </el-descriptions-item>
           <el-descriptions-item label="核销码">{{ detail.verifyCode }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ statusMap[detail.status] }}</el-descriptions-item>
-          <el-descriptions-item label="来源">{{ detail.source }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="statusType[detail.status]">{{ statusMap[detail.status] }}</el-tag>
+          </el-descriptions-item>
           <el-descriptions-item label="领券时间">{{ detail.claimDate }}</el-descriptions-item>
           <el-descriptions-item label="核销时间">{{ detail.useDate || '-' }}</el-descriptions-item>
           <el-descriptions-item label="过期日期">{{ detail.expireDate }}</el-descriptions-item>
           <el-descriptions-item label="兑换机构">{{ detail.agency ? detail.agency.name : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="分享人">{{ detail.sharer ? detail.sharer.nickname + (detail.sharer.phone ? ' (' + detail.sharer.phone + ')' : '') : '-' }}</el-descriptions-item>
         </el-descriptions>
       </template>
     </el-drawer>

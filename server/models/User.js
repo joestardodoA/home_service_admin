@@ -34,8 +34,14 @@ const User = sequelize.define('User', {
   withdrawnAmount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
   balance: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
 
+  // 账户状态（active=正常, disabled=已禁用）
+  status: { type: DataTypes.STRING(20), defaultValue: 'active' },
+
   // 积分（后台手动增减）
   points: { type: DataTypes.INTEGER, defaultValue: 0 },
+
+  // 后台人工评分（0-100，用于 AI 匹配权重，由后台员工回访后手动设定）
+  adminScore: { type: DataTypes.INTEGER, defaultValue: 0, comment: '后台管理评分(0-100)' },
 
   // 意向工种（JSON 数组，用于订单推送匹配）
   preferredJobTypes: {

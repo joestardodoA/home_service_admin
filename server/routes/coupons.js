@@ -1,7 +1,7 @@
 // server/routes/coupons.js — 优惠券 CRUD
 const express = require('express');
 const { Coupon } = require('../models');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requirePermission } = require('../middleware/auth');
 const { success, fail, paginate } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -9,7 +9,7 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // 列表（分页+搜索+状态筛选）
-router.get('/', async function(req, res) {
+router.get('/', requirePermission('coupons:view'), async function(req, res) {
   try {
     var page = parseInt(req.query.page) || 1;
     var pageSize = parseInt(req.query.pageSize) || 10;
@@ -42,7 +42,7 @@ router.get('/:id', async function(req, res) {
 });
 
 // 创建
-router.post('/', async function(req, res) {
+router.post('/', requirePermission('coupons:create'), async function(req, res) {
   try {
     var data = req.body;
     if (!data.title) return fail(res, '券名称不能为空');
@@ -56,11 +56,18 @@ router.post('/', async function(req, res) {
 });
 
 // 编辑
-router.put('/:id', async function(req, res) {
+router.put('/:id', requirePermission('coupons:edit'), async function(req, res) {
   try {
     var coupon = await Coupon.findByPk(req.params.id);
     if (!coupon) return fail(res, '优惠券不存在', 404);
-    await coupon.update(req.body);
+    // 白名单：排除不可手动修改的统计字段
+    var updates = Object.assign({}, req.body);
+    delete updates.id;
+    delete updates.claimedCount;
+    delete updates.remainCount;
+    delete updates.createdAt;
+    delete updates.updatedAt;
+    await coupon.update(updates);
     return success(res, coupon, '更新成功');
   } catch (err) {
     return fail(res, '更新失败: ' + err.message, 500);
@@ -68,7 +75,7 @@ router.put('/:id', async function(req, res) {
 });
 
 // 删除（仅草稿可删）
-router.delete('/:id', async function(req, res) {
+router.delete('/:id', requirePermission('coupons:delete'), async function(req, res) {
   try {
     var coupon = await Coupon.findByPk(req.params.id);
     if (!coupon) return fail(res, '优惠券不存在', 404);
@@ -81,7 +88,7 @@ router.delete('/:id', async function(req, res) {
 });
 
 // 上架/下架
-router.put('/:id/status', async function(req, res) {
+router.put('/:id/status', requirePermission('coupons:edit'), async function(req, res) {
   try {
     var coupon = await Coupon.findByPk(req.params.id);
     if (!coupon) return fail(res, '优惠券不存在', 404);

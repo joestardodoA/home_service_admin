@@ -1,20 +1,20 @@
 // server/routes/banners.js — Banner 管理
 const express = require('express');
 const { Banner } = require('../models');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requirePermission } = require('../middleware/auth');
 const { success, fail } = require('../utils/response');
 
 const router = express.Router();
 router.use(authMiddleware);
 
-router.get('/', async function(req, res) {
+router.get('/', requirePermission('banners:view'), async function(req, res) {
   try {
     var list = await Banner.findAll({ order: [['sortOrder', 'DESC'], ['createdAt', 'DESC']] });
     return success(res, list);
   } catch (err) { return fail(res, '查询失败', 500); }
 });
 
-router.post('/', async function(req, res) {
+router.post('/', requirePermission('banners:create'), async function(req, res) {
   try {
     if (!req.body.title) return fail(res, '标题不能为空');
     var banner = await Banner.create(req.body);
@@ -22,7 +22,7 @@ router.post('/', async function(req, res) {
   } catch (err) { return fail(res, '创建失败', 500); }
 });
 
-router.put('/:id', async function(req, res) {
+router.put('/:id', requirePermission('banners:edit'), async function(req, res) {
   try {
     var banner = await Banner.findByPk(req.params.id);
     if (!banner) return fail(res, 'Banner 不存在', 404);
@@ -31,7 +31,7 @@ router.put('/:id', async function(req, res) {
   } catch (err) { return fail(res, '更新失败', 500); }
 });
 
-router.delete('/:id', async function(req, res) {
+router.delete('/:id', requirePermission('banners:delete'), async function(req, res) {
   try {
     var banner = await Banner.findByPk(req.params.id);
     if (!banner) return fail(res, 'Banner 不存在', 404);

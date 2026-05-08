@@ -26,15 +26,25 @@ const ServiceOrder = sequelize.define('ServiceOrder', {
   contactName: { type: DataTypes.STRING(50), defaultValue: '' },
   contactPhone: { type: DataTypes.STRING(20), defaultValue: '' },
 
-  // 状态
+  // 状态流转：pending → approved → assigned → matching → matched → completed
   status: {
-    type: DataTypes.ENUM('pending', 'approved', 'matching', 'matched', 'completed', 'cancelled', 'rejected'),
+    type: DataTypes.STRING(20),
     defaultValue: 'pending'
+    // pending=待审核, approved=已审核(公域池), assigned=已分配给销售
+    // matching=销售匹配中, matched=已派单, completed=已完成, cancelled=已取消, rejected=已拒绝
   },
+
+  // 分配给销售
+  assignedAdminId: { type: DataTypes.INTEGER },   // 分配给哪个销售管理员
+  assignedAt: { type: DataTypes.DATE },            // 分配时间
 
   // 确认接单
   acceptedApplicationId: { type: DataTypes.INTEGER },  // 最终确认的接单申请
   acceptedUserId: { type: DataTypes.INTEGER },          // 最终确认的接单阿姨
+
+  // 实际金额（订单完成时填写，用于业绩统计）
+  actualAmount: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
+  completedAt: { type: DataTypes.DATE },           // 完成时间
 
   remark: { type: DataTypes.TEXT, defaultValue: '' },
   adminNote: { type: DataTypes.TEXT, defaultValue: '' },

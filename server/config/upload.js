@@ -37,12 +37,22 @@ module.exports = {
   },
 
   // 通用限制
-  maxFileSize: 5 * 1024 * 1024,  // 5MB
+  maxFileSize: 10 * 1024 * 1024,  // 10MB（支持文档上传）
   allowedMimeTypes: [
+    // 图片类型
     'image/jpeg',
     'image/png',
     'image/gif',
     'image/webp',
-    'image/svg+xml'
+    // 注意：不允许 image/svg+xml，SVG 可嵌入脚本导致 XSS
+
+    // 文档类型（AI 文件分析 + 批量导入）
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',   // .xlsx
+    'application/vnd.ms-excel',                                            // .xls
+    'text/csv',                                                            // .csv
+    'application/pdf',                                                     // .pdf
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+    'application/msword',                                                  // .doc
+    'text/plain'                                                           // .txt
   ]
 };

@@ -1,0 +1,1 @@
+import{r as s}from"./request-BL4PJXSB.js";const p=o=>s.get("/coupons",{params:o}),n=o=>s.get("/coupons/"+o),e=o=>s.post("/coupons",o),c=(o,t)=>s.put("/coupons/"+o,t),a=o=>s.delete("/coupons/"+o),r=(o,t)=>s.put("/coupons/"+o+"/status",{status:t});export{n as a,c as b,e as c,a as d,p as g,r as u};

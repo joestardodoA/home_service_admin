@@ -1,7 +1,7 @@
 // server/routes/agencies.js — 机构 CRUD + 课程
 const express = require('express');
 const { Agency, AgencyCourse } = require('../models');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requirePermission } = require('../middleware/auth');
 const { success, fail, paginate } = require('../utils/response');
 const { Op } = require('sequelize');
 
@@ -9,7 +9,7 @@ const router = express.Router();
 router.use(authMiddleware);
 
 // 机构列表
-router.get('/', async function(req, res) {
+router.get('/', requirePermission('agencies:view'), async function(req, res) {
   try {
     var page = parseInt(req.query.page) || 1;
     var pageSize = parseInt(req.query.pageSize) || 10;
@@ -59,7 +59,7 @@ router.get('/:id', async function(req, res) {
 });
 
 // 创建机构
-router.post('/', async function(req, res) {
+router.post('/', requirePermission('agencies:create'), async function(req, res) {
   try {
     if (!req.body.name) return fail(res, '机构名称不能为空');
     var agency = await Agency.create(req.body);
@@ -70,11 +70,15 @@ router.post('/', async function(req, res) {
 });
 
 // 编辑机构
-router.put('/:id', async function(req, res) {
+router.put('/:id', requirePermission('agencies:edit'), async function(req, res) {
   try {
     var agency = await Agency.findByPk(req.params.id);
     if (!agency) return fail(res, '机构不存在', 404);
-    await agency.update(req.body);
+    var updates = Object.assign({}, req.body);
+    delete updates.id;
+    delete updates.createdAt;
+    delete updates.updatedAt;
+    await agency.update(updates);
     return success(res, agency, '更新成功');
   } catch (err) {
     return fail(res, '更新失败', 500);
@@ -82,7 +86,7 @@ router.put('/:id', async function(req, res) {
 });
 
 // 删除机构
-router.delete('/:id', async function(req, res) {
+router.delete('/:id', requirePermission('agencies:delete'), async function(req, res) {
   try {
     var agency = await Agency.findByPk(req.params.id);
     if (!agency) return fail(res, '机构不存在', 404);
@@ -94,7 +98,7 @@ router.delete('/:id', async function(req, res) {
 });
 
 // ---- 课程子路由 ----
-router.post('/:id/courses', async function(req, res) {
+router.post('/:id/courses', requirePermission('agencies:edit'), async function(req, res) {
   try {
     var agency = await Agency.findByPk(req.params.id);
     if (!agency) return fail(res, '机构不存在', 404);
@@ -106,7 +110,7 @@ router.post('/:id/courses', async function(req, res) {
   }
 });
 
-router.put('/:id/courses/:cid', async function(req, res) {
+router.put('/:id/courses/:cid', requirePermission('agencies:edit'), async function(req, res) {
   try {
     var course = await AgencyCourse.findOne({ where: { id: req.params.cid, agencyId: req.params.id } });
     if (!course) return fail(res, '课程不存在', 404);
@@ -117,7 +121,7 @@ router.put('/:id/courses/:cid', async function(req, res) {
   }
 });
 
-router.delete('/:id/courses/:cid', async function(req, res) {
+router.delete('/:id/courses/:cid', requirePermission('agencies:edit'), async function(req, res) {
   try {
     var course = await AgencyCourse.findOne({ where: { id: req.params.cid, agencyId: req.params.id } });
     if (!course) return fail(res, '课程不存在', 404);

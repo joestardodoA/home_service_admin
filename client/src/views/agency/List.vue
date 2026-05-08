@@ -22,7 +22,14 @@
     </el-card>
 
     <el-card style="margin-top:16px;">
-      <el-table :data="list" v-loading="loading" stripe>
+      <!-- 批量操作栏 -->
+      <div v-if="selectedRows.length > 0" class="batch-bar">
+        <span class="batch-count">已选 {{ selectedRows.length }} 条</span>
+        <el-button size="small" type="danger" @click="handleBatchDelete">批量删除</el-button>
+      </div>
+
+      <el-table :data="list" v-loading="loading" stripe @selection-change="onSelectionChange">
+        <el-table-column type="selection" width="40" />
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="name" label="机构名称" min-width="200" />
         <el-table-column prop="address" label="地址" min-width="200" show-overflow-tooltip />
@@ -44,7 +51,7 @@
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="$router.push('/agencies/edit/' + row.id)">编辑</el-button>
+            <el-button size="small" type="primary" @click="$router.push('/agencies/edit/' + row.id)">编辑</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -64,6 +71,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
+const selectedRows = ref([])
 const query = reactive({ keyword: '', status: '', page: 1, pageSize: 10 })
 
 async function fetchList() {
@@ -77,6 +85,8 @@ async function fetchList() {
 
 function resetQuery() { query.keyword = ''; query.status = ''; query.page = 1; fetchList() }
 
+function onSelectionChange(rows) { selectedRows.value = rows }
+
 async function handleDelete(row) {
   await ElMessageBox.confirm('确认删除「' + row.name + '」？删除后相关课程也会被清除。', '警告', { type: 'warning' })
   await deleteAgency(row.id)
@@ -84,5 +94,28 @@ async function handleDelete(row) {
   fetchList()
 }
 
+// 批量删除
+async function handleBatchDelete() {
+  await ElMessageBox.confirm('确认批量删除 ' + selectedRows.value.length + ' 个机构？相关课程也会被清除。', '批量删除', { type: 'warning' })
+  var success_count = 0
+  for (var i = 0; i < selectedRows.value.length; i++) {
+    try {
+      await deleteAgency(selectedRows.value[i].id)
+      success_count++
+    } catch (e) {}
+  }
+  ElMessage.success('批量删除完成，成功 ' + success_count + ' 条')
+  fetchList()
+}
+
 onMounted(fetchList)
 </script>
+
+<style scoped>
+.filter-card { margin-bottom: 0; }
+.batch-bar {
+  margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: #fef0f0; border-radius: 6px;
+}
+.batch-count { color: #f56c6c; font-size: 13px; font-weight: 500; }
+</style>

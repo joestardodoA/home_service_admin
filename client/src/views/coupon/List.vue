@@ -25,7 +25,16 @@
 
     <!-- 数据表格 -->
     <el-card style="margin-top:16px;">
-      <el-table :data="list" v-loading="loading" stripe>
+      <!-- 批量操作栏 -->
+      <div v-if="selectedRows.length > 0" class="batch-bar">
+        <span class="batch-count">已选 {{ selectedRows.length }} 条</span>
+        <el-button size="small" type="success" @click="handleBatchStatus('online')">批量上架</el-button>
+        <el-button size="small" type="warning" @click="handleBatchStatus('offline')">批量下架</el-button>
+        <el-button size="small" type="danger" @click="handleBatchDelete">批量删除</el-button>
+      </div>
+
+      <el-table :data="list" v-loading="loading" stripe @selection-change="onSelectionChange">
+        <el-table-column type="selection" width="40" />
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="title" label="券名称" min-width="180" />
         <el-table-column prop="type" label="类型" width="90">
@@ -48,7 +57,7 @@
         <el-table-column prop="expireDate" label="有效期至" width="120" />
         <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="$router.push('/coupons/edit/' + row.id)">编辑</el-button>
+            <el-button size="small" type="primary" @click="$router.push('/coupons/edit/' + row.id)">编辑</el-button>
             <el-button v-if="row.status !== 'online'" size="small" type="success" @click="changeStatus(row, 'online')">上架</el-button>
             <el-button v-if="row.status === 'online'" size="small" type="warning" @click="changeStatus(row, 'offline')">下架</el-button>
             <el-button v-if="row.status === 'draft'" size="small" type="danger" @click="handleDelete(row)">删除</el-button>
@@ -70,6 +79,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
+const selectedRows = ref([])
 const query = reactive({ keyword: '', status: '', page: 1, pageSize: 10 })
 const typeMap = { free: '免费', discount: '折扣', cash: '现金' }
 const statusMap = { draft: '草稿', online: '已上架', offline: '已下架' }
@@ -86,6 +96,8 @@ async function fetchList() {
 
 function resetQuery() { query.keyword = ''; query.status = ''; query.page = 1; fetchList() }
 
+function onSelectionChange(rows) { selectedRows.value = rows }
+
 async function changeStatus(row, status) {
   await updateCouponStatus(row.id, status)
   ElMessage.success('操作成功')
@@ -99,9 +111,44 @@ async function handleDelete(row) {
   fetchList()
 }
 
+// 批量操作
+async function handleBatchStatus(status) {
+  var label = status === 'online' ? '上架' : '下架'
+  await ElMessageBox.confirm('确认批量' + label + ' ' + selectedRows.value.length + ' 张优惠券？', '批量' + label, { type: 'warning' })
+  var success_count = 0
+  for (var i = 0; i < selectedRows.value.length; i++) {
+    try {
+      await updateCouponStatus(selectedRows.value[i].id, status)
+      success_count++
+    } catch (e) {}
+  }
+  ElMessage.success('批量' + label + '完成，成功 ' + success_count + ' 条')
+  fetchList()
+}
+
+async function handleBatchDelete() {
+  var drafts = selectedRows.value.filter(function(r) { return r.status === 'draft' })
+  if (drafts.length === 0) { ElMessage.warning('只有草稿状态的优惠券可以删除'); return }
+  await ElMessageBox.confirm('确认批量删除 ' + drafts.length + ' 张草稿优惠券？', '批量删除', { type: 'warning' })
+  var success_count = 0
+  for (var i = 0; i < drafts.length; i++) {
+    try {
+      await deleteCoupon(drafts[i].id)
+      success_count++
+    } catch (e) {}
+  }
+  ElMessage.success('批量删除完成，成功 ' + success_count + ' 条')
+  fetchList()
+}
+
 onMounted(fetchList)
 </script>
 
 <style scoped>
 .filter-card { margin-bottom: 0; }
+.batch-bar {
+  margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; background: #f0f9eb; border-radius: 6px;
+}
+.batch-count { color: #67c23a; font-size: 13px; font-weight: 500; }
 </style>

@@ -20,5 +20,14 @@ function paginate(res, rows, count, page, pageSize) {
     }
   });
 }
+// 安全分页参数解析（防止过大 pageSize 拖库或负数）
+function safePageParams(query) {
+  var page = parseInt(query.page) || 1;
+  var pageSize = parseInt(query.pageSize) || 10;
+  if (page < 1) page = 1;
+  if (pageSize < 1) pageSize = 10;
+  if (pageSize > 100) pageSize = 100;
+  return { page: page, pageSize: pageSize };
+}
 
-module.exports = { success, fail, paginate };
+module.exports = { success, fail, paginate, safePageParams };
