@@ -674,10 +674,16 @@ router.post('/wx-login', wxLoginLimiter, async function(req, res) {
           return fail(res, '微信登录服务异常', 500);
         }
       } else {
-        // 开发模式降级：未配置 WX_APPID/WX_SECRET 时使用模拟 openid
-        var hourKey = Math.floor(Date.now() / 3600000);
-        openid = 'dev_user_' + hourKey;
-        console.warn('[微信登录] 未配置 WX_APPID/WX_SECRET，使用模拟 openid:', openid);
+        // 生产环境：未配置 WX_APPID/WX_SECRET 时必须报错，不能使用假 openid
+        if (!code) {
+          console.error('[微信登录] 前端未传 code 参数');
+          return fail(res, '登录失败：缺少登录凭证(code)', 400);
+        }
+        // 有 code 但没配置 AppID/Secret
+        console.error('[微信登录] 环境变量未配置！appSource=' + appSource +
+          ', WX_APPID=' + (wxAppId ? '已配置' : '未配置') +
+          ', WX_SECRET=' + (wxSecret ? '已配置' : '未配置'));
+        return fail(res, '服务端配置错误：微信登录凭证未配置，请联系管理员', 500);
       }
     }
 
@@ -848,7 +854,15 @@ router.put('/user/:id', requireWxAuth, async function(req, res) {
     if (req.body.avatar !== undefined) updates.avatar = req.body.avatar;
     if (req.body.phone !== undefined && req.body.phone.indexOf('*') === -1) updates.phone = req.body.phone;
     if (req.body.gender !== undefined) updates.gender = req.body.gender;
-    if (req.body.birthday !== undefined) updates.birthday = req.body.birthday;
+    if (req.body.birthday !== undefined) {
+      var bd = req.body.birthday;
+      // 过滤无效日期值
+      if (bd && bd !== 'Invalid date' && !isNaN(new Date(bd).getTime())) {
+        updates.birthday = bd;
+      } else {
+        updates.birthday = null;
+      }
+    }
     if (req.body.city !== undefined) updates.city = req.body.city;
     if (req.body.preferredJobTypes !== undefined) {
       updates.preferredJobTypes = JSON.stringify(req.body.preferredJobTypes);
@@ -2342,6 +2356,76 @@ router.get('/exchange-info', async function(req, res) {
       hours: result.points_exchange_hours || '工作日 9:00-18:00'
     });
   } catch (err) { return fail(res, '查询失败', 500); }
+});
+
+// ========== 内容安全检查（微信 msgSecCheck）==========
+// 微信审核要求：所有用户输入内容需经过内容安全 API 检测
+router.post('/content-check', async function(req, res) {
+  try {
+    var content = req.body.content;
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      return success(res, { safe: true });
+    }
+
+    // 获取 appSource 以选择正确的 AppID/Secret
+    var appSource = req.body.appSource || 'yesao';
+    var appId, appSecret;
+    if (appSource === 'xiaoweilan' && process.env.WX_APPID_XWL && process.env.WX_SECRET_XWL) {
+      appId = process.env.WX_APPID_XWL;
+      appSecret = process.env.WX_SECRET_XWL;
+    } else {
+      appId = process.env.WX_APPID;
+      appSecret = process.env.WX_SECRET;
+    }
+
+    // 开发环境降级：未配置微信凭据时直接放行
+    if (!appId || !appSecret) {
+      console.warn('[内容安全] 未配置 WX_APPID/WX_SECRET，跳过检测');
+      return success(res, { safe: true });
+    }
+
+    var axios = require('axios');
+
+    // 1. 获取 access_token
+    var tokenRes = await axios.get('https://api.weixin.qq.com/cgi-bin/token', {
+      params: { grant_type: 'client_credential', appid: appId, secret: appSecret }
+    });
+    if (!tokenRes.data || !tokenRes.data.access_token) {
+      console.error('[内容安全] 获取 access_token 失败:', tokenRes.data);
+      // token 获取失败时不阻塞用户操作
+      return success(res, { safe: true });
+    }
+
+    // 2. 调用 msgSecCheck
+    var openid = req.body.openid || '';
+    var postData;
+    if (openid) {
+      // v2 版本需要 openid
+      postData = { version: 2, scene: 1, openid: openid, content: content.slice(0, 5000) };
+    } else {
+      // 无 openid 时使用 v1 版本（仅需 content）
+      postData = { content: content.slice(0, 5000) };
+    }
+    var checkRes = await axios.post(
+      'https://api.weixin.qq.com/wxa/msg_sec_check?access_token=' + tokenRes.data.access_token,
+      postData
+    );
+
+    // v1: errcode 87014 表示有风险; v2: result.suggest === 'risky'
+    if (checkRes.data.errcode === 87014) {
+      return success(res, { safe: false, msg: '内容包含违规信息，请修改后重试' });
+    }
+    var result = checkRes.data && checkRes.data.result;
+    if (result && result.suggest === 'risky') {
+      return success(res, { safe: false, msg: '内容包含违规信息，请修改后重试' });
+    }
+
+    return success(res, { safe: true });
+  } catch (err) {
+    console.error('[内容安全] 检测异常:', err.message);
+    // 异常时不阻塞用户操作
+    return success(res, { safe: true });
+  }
 });
 
 module.exports = router;

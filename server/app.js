@@ -137,6 +137,22 @@ async function start() {
     await sequelize.sync({ alter: true });
     console.log('[数据库] 表结构同步完成');
 
+    // 3. 检查微信登录关键环境变量
+    if (!process.env.WX_APPID || !process.env.WX_SECRET) {
+      console.error('============================================');
+      console.error('⚠️  警告: WX_APPID 或 WX_SECRET 未配置！');
+      console.error('⚠️  椰嫂小程序用户将无法登录！');
+      console.error('⚠️  请在 ecosystem.config.js 中配置后重启！');
+      console.error('============================================');
+    }
+    if (!process.env.WX_APPID_XWL || !process.env.WX_SECRET_XWL) {
+      console.error('============================================');
+      console.error('⚠️  警告: WX_APPID_XWL 或 WX_SECRET_XWL 未配置！');
+      console.error('⚠️  小围栏小程序用户将无法登录！');
+      console.error('⚠️  请在 ecosystem.config.js 中配置后重启！');
+      console.error('============================================');
+    }
+
     app.listen(PORT, function() {
       console.log('海南椰嫂综合平台后台 API: http://localhost:' + PORT);
     });

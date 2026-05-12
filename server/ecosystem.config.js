@@ -31,12 +31,12 @@ module.exports = {
       // === JWT 密钥 ===
       JWT_SECRET: 'CHANGE_ME',     // ⚠️ 修改为安全密钥
       WX_JWT_SECRET: '',           // 小程序 JWT（留空使用默认开发密钥）
-      // === 微信小程序（椰嫂） ===
-      WX_APPID: '',
-      WX_SECRET: '',
-      // === 微信小程序（小围栏） ===
-      WX_APPID_XWL: '',             // ⚠️ 填入小围栏的 AppID
-      WX_SECRET_XWL: '',            // ⚠️ 填入小围栏的 AppSecret
+      // === 微信小程序（椰嫂） ===  ⚠️ 必填！不填则无法登录！
+      WX_APPID: '',                // ⚠️ 填入椰嫂的 AppID（登录必须）
+      WX_SECRET: '',               // ⚠️ 填入椰嫂的 AppSecret（登录必须）
+      // === 微信小程序（小围栏） === ⚠️ 必填！不填则无法登录！
+      WX_APPID_XWL: '',            // ⚠️ 填入小围栏的 AppID（登录必须）
+      WX_SECRET_XWL: '',           // ⚠️ 填入小围栏的 AppSecret（登录必须）
       // === AI 服务（DeepSeek V4） ===
       AI_PROVIDER: 'deepseek',
       AI_API_KEY: 'sk-ce92e7c9e5da4177ba9106eb41308e07',
